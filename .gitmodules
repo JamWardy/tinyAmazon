@@ -1,3 +1,4 @@
 [submodule "tinysql"]
 	path = tinysql
 	url = https://github.com/JamWardy/tinysql.git
+	branch = main
