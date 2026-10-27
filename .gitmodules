@@ -2,3 +2,11 @@
 	path = tinysql
 	url = https://github.com/JamWardy/tinysql.git
 	branch = main
+[submodule "tinyhttp"]
+	path = tinyhttp
+	url = https://github.com/JamWardy/tinyhttp.git
+	branch = main
+[submodule "tinyweb"]
+	path = tinyweb
+	url = https://github.com/JamWardy/tinyweb.git
+	branch = main
