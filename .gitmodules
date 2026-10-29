@@ -10,3 +10,7 @@
 	path = tinyweb
 	url = https://github.com/JamWardy/tinyweb.git
 	branch = main
+[submodule "tinyAmazonTest"]
+	path = tinyAmazonTest
+	url = https://github.com/JamWardy/tinyAmazonTesting.git
+	branch = main

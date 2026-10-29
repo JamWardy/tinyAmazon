@@ -61,16 +61,14 @@ TinySQL is paused until step 4. Steps 1 and 2 need no database.
 
 ### 2. Static files and a hello-world page
 
-- [ ] Serve files under `/static/`, with a `Content-Type` from the
+- [x] Serve files under `/static/`, with a `Content-Type` from the
       extension, and never a path outside the folder (`/static/../`)
-- [ ] `Cache-Control`, `ETag` and `304 Not Modified`
-- [ ] A hello-world page with some CSS
-- [ ] A page showing a few rows from the seed, copied into a JSON file
-      by hand, since the database comes in step 4
-- [ ] WSGI between the server and the app (PEP 3333), then check it
+- [x] `Cache-Control`, `ETag`, `Last-Modified` and `304 Not Modified`
+- [x] A hello-world page with some CSS
+- [x] WSGI between the server and the app (PEP 3333), then check it
       both ways: a real Flask app on our server, and our app on real
       gunicorn
-- [ ] Routing: send `GET /products/5` to the code for a product page,
+- [x] Routing: send `GET /products/5` to the code for a product page,
       answer `GET /health` with `200 OK`, and unknown paths with `404`
 
 ### 3. System design
