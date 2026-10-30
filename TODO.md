@@ -1,12 +1,17 @@
 # TODO
 
-A toy online shop, built from scratch to learn how each part works,
-in the same layers a real deployment has, each in its own process:
+A toy online marketplace, built from scratch to learn how each part
+works, in the same layers a real deployment has, each in its own
+process. The design is in `DESIGN.md`:
 
 ```
-browser ─► proxy / load balancer ─► HTTP server ──WSGI──► framework + shop app ─► TinySQL server
-           (nginx's job, later)     (gunicorn's job)       (Flask's job)          (Postgres's job)
+client ─► API gateway ─► HTTP server ──WSGI──► framework + service ─► TinySQL server
+          (auth, routing) (gunicorn's job)       (Flask's job)          (Postgres's job)
 ```
+
+The gateway routes to four services, each its own process: search,
+which reads a TinySQL read replica, and auth, items and orders, which
+use the primary. The order service also calls a payment provider.
 
 ## Layout
 
@@ -17,11 +22,22 @@ tinyAmazon/
   tinysql/     the database        (Postgres's job)
   tinyhttp/    the HTTP server     (gunicorn's job)   ← step 1
   tinyweb/     the framework       (Flask's job)      ← step 2, once WSGI goes in
-  shop/        the app: routes, templates, static/    ← step 2 onwards
+  shop/        the services: auth, search, items and orders  ← step 4
+  db/          our database: schema, seed data and data files
 ```
 
 - `tinysql/` is in C, with its own `TODO.md` for what the database
   needs for the shop. It gets a server in step 4.
+- `db/` is the shop's own database, run on TinySQL's server, as an app
+  keeps its schema in its own repo, never in Postgres's:
+
+  ```
+  db/
+    schema.sql    the CREATE TABLEs and the index, from DESIGN.md
+    seed.sql      sample rows
+    primary.db    the data files, git-ignored
+    replica.db
+  ```
 - The rest is in Python, with no libraries beyond Python's own, so
   `socket`, not `http.server`.
 - The imports show where one part ends and the next begins:
@@ -29,8 +45,8 @@ tinyAmazon/
   gunicorn is told `shop:app`. `shop` never imports `tinyhttp`, so it
   can run on real gunicorn instead. `tinyweb` sits between them, as
   Flask does.
-- Later parts get folders of their own in the same way, such as
-  `tinyproxy/` and `tinydns/`.
+- Later parts get folders of their own in the same way, such as the
+  gateway, `tinyproxy/` and `tinydns/`.
 
 For step 1, before WSGI, `tinyhttp/` is just:
 
@@ -76,38 +92,58 @@ TinySQL is paused until step 4. Steps 1 and 2 need no database.
 In `DESIGN.md`. Design the shop first, then list what TinySQL lacks;
 that list becomes TinySQL's work for step 4.
 
-- [ ] Requirements: what a visitor and a customer can do, and what's
-      out of scope
-- [ ] Entities and how they relate (users, products, basket, orders,
-      payments, reviews, sessions, ...)
-- [ ] Pages and API: each route, its method, what it takes and returns,
-      and its status codes
-- [ ] The schema: tables, keys and constraints, and the queries behind
-      each page
-- [ ] New seed data for that schema, replacing `tinysql/seed/retail.sql`
-      and `tinysql/shop.db`
-- [ ] What TinySQL is missing for it (see `tinysql/TODO.md`)
+- [x] Requirements: an eBay-style marketplace. Sellers list items with
+      a stock count, customers search them and order one listing at a
+      time
+- [x] Entities: users (buyers and sellers alike), items (listings) and
+      orders
+- [x] API: `GET /search`, `POST /listings` and `POST /orders`, with a
+      JWT on every write; the ordering flow (reserve, pay, confirm) and
+      idempotency keys
+- [x] Architecture: an API gateway, four services, a TinySQL primary
+      and a read replica
+- [x] Each endpoint's status codes: see `DESIGN.md`
+- [x] The schema: column types, keys and constraints, and the queries
+      behind each endpoint; see `DESIGN.md`
+- [x] What TinySQL is missing for it: see `tinysql/TODO.md`
 
-### 4. The web server and the database, talking
+### 4. The marketplace, as designed
 
 - [ ] In `tinysql/`: a server, its wire protocol, parameters (`?`) and
-      transactions per connection; see "Decisions" below
-- [ ] A client in Python, so the shop can send queries
-- [ ] Load the new seed into a fresh database
-- [ ] Templates: fill in an HTML page from the query results
-- [ ] The pages from step 3: products, product page, sign-up and log-in
-      with sessions, basket, checkout (then a redirect to the order,
-      Post/Redirect/Get), order history
+      transactions per connection, one at a time, with an idle time
+      limit. One process, with a `select()` loop over every connection;
+      see "Decisions" below and `DESIGN.md`
+- [ ] A client in Python, so the services can send queries
+- [ ] `db/schema.sql`, from the schema in `DESIGN.md`, and
+      `db/seed.sql`, the sample rows for it; delete
+      `tinysql/seed/retail.sql` and `tinysql/shop.db`
+- [ ] Load `db/schema.sql` and `db/seed.sql` into a fresh
+      `db/primary.db`
+- [ ] A read replica, `db/replica.db`, a few seconds behind the primary
+- [ ] A script in `db/` that starts the primary and the replica
+- [ ] JSON in tinyweb: read a JSON body, with `400` if it isn't, and
+      return one with `Content-Type: application/json`; and `402` and
+      `502` in `REASONS`
+- [ ] The auth service: `POST /users` and `POST /login`, which returns
+      a JWT signed with HMAC-SHA256 (`hmac`, `hashlib`, `base64`,
+      `json`), on the primary
+- [ ] The item service: `POST /listings`, on the primary
+- [ ] The search service: `GET /search`, on the replica
+- [ ] The fake payment provider, `tinypay/`
+- [ ] The order service: `POST /orders`: reserve, pay and confirm, with
+      idempotency keys, on the primary
+- [ ] The API gateway: checks the JWT on every write, passes the user
+      on to the service, and routes each path to its service
 
 ### 5. Follow-ups
 
 The shop and the database:
 
-- [ ] The rest of `tinysql/TODO.md`: `UNIQUE`, `AUTOINCREMENT`,
-      arithmetic, `CREATE INDEX`, `LIKE`, `OFFSET`, `JOIN`, ...
-- [ ] Search, pages of results, writing reviews, addresses at checkout
-- [ ] Proper auth: password hashing, session expiry, CSRF tokens
-- [ ] A small JSON API, e.g. for the basket
+- [ ] The rest of `tinysql/TODO.md`: foreign keys, `JOIN`, ...
+- [ ] The cleanup job: mark old `PENDING` orders `EXPIRED`. Optional,
+      as nothing depends on it
+- [ ] Token expiry and refresh
+- [ ] Pages that call the API
 
 Performance:
 
@@ -121,65 +157,22 @@ Performance:
 
 In front of the shop:
 
+- [ ] Rate limiting in the API gateway
 - [ ] Reverse proxy: serves `/static/` itself, and reads slow clients'
       requests in full before passing them on
 - [ ] Load balancer: the proxy, sharing requests round-robin between two
-      app servers (`:8001` and `:8002`) using one TinySQL server
+      copies of a service (`:8001` and `:8002`) using one TinySQL server
 - [ ] DNS: `shop.local` in `/etc/hosts` first, then a small UDP server
       that answers for it
 - [ ] CDN: a caching proxy that follows `Cache-Control` for `/static/`
-- [ ] API gateway: in front of the JSON API, checking who's calling and
-      limiting how often
 
 ## Notes for the design
 
-Written for the old seed schema, as a starting point for step 3.
+### Passwords
 
-### The pages
-
-Each page and the queries behind it. `?` is a value the server passes
-in, never pasted into the SQL.
-
-| Page | Queries |
-|---|---|
-| Products in a category | `SELECT * FROM products WHERE category_id = ? AND is_active = 1 ORDER BY price_cents LIMIT 20` |
-| Product page | `SELECT * FROM products WHERE id = ?`, then `SELECT * FROM reviews WHERE product_id = ?` |
-| Log in | `SELECT * FROM users WHERE email = ?` |
-| Basket | `SELECT * FROM cart_items WHERE user_id = ?`, then each product by its `id` |
-| Checkout | In a transaction: insert the order, insert each item, `UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?`, insert the payment, empty the basket |
-| Order history | `SELECT * FROM orders WHERE user_id = ? ORDER BY order_date DESC` |
-
-There's no `JOIN`, so a page that needs several tables runs one query
-per table, and the server puts the results together.
-
-### Checkout
-
-The hardest part, because it must happen completely or not at all:
-
-1. Read the basket.
-2. `BEGIN`.
-3. Insert the order, and get its new ID.
-4. For each item: lower the product's stock, only if there's enough,
-   then insert the order item with today's price.
-5. Insert the payment.
-6. Empty the basket.
-7. `COMMIT`. If any step fails, such as an item out of stock,
-   `ROLLBACK` instead, and nothing has changed.
-
-The item's price is copied into `order_items.unit_price_cents`, so a
-later price change doesn't change an old order.
-
-### Logging in
-
-- Store a hash of the password, never the password itself, using a
-  slow hash made for passwords (bcrypt, scrypt or Argon2), not a fast
-  one such as SHA-256. Python has `hashlib.scrypt`.
-- After logging in, the server gives the browser a session ID in a
-  cookie, and keeps a `sessions` table mapping each ID to its user. The
-  ID is random and long enough that no one can guess it (`secrets`).
-- Sessions live in the database, not in the app server's memory, so
-  any app server can answer any request. That's what lets the load
-  balancer work later.
+Store a hash of the password, never the password itself, using a slow
+hash made for passwords (bcrypt, scrypt or Argon2), not a fast one such
+as SHA-256. Python has `hashlib.scrypt`.
 
 ## Decisions
 
@@ -194,9 +187,8 @@ later price change doesn't change an old order.
   Flask and gunicorn are Python, so we can swap ours for theirs through
   WSGI to check our work. In C, most of the time would go on strings
   and buffers, which `tinysql/` already teaches.
-- **HTML pages first, JSON later.** Pages made on the server teach more
-  of HTTP: forms, redirects, status codes, cookies and `Content-Type`.
-  A JSON API comes later, for the API gateway to sit in front of.
+- **A JSON API,** as `DESIGN.md` has, behind an API gateway. Pages that
+  call it come later.
 - **Requests at once, in stages,** as real servers did:
   1. One at a time. A client that connects and sends nothing blocks
      everyone (the Slowloris attack). That's why gunicorn's docs say to
