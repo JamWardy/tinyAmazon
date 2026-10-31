@@ -104,29 +104,38 @@ All in `DESIGN.md`, except the last, which is in `tinysql/TODO.md`.
 
 ### 4. The marketplace, as designed
 
-Each part is built as `DESIGN.md` describes it.
+Each part is built as `DESIGN.md` describes it, in this order.
 
-- [ ] In `tinysql/`: everything under "Next" in `tinysql/TODO.md`
-- [ ] A TinySQL client in Python, so the services can send queries
-- [ ] `db/schema.sql`, from the schema in `DESIGN.md`, and
-      `db/seed.sql`, the sample rows for it; delete
-      `tinysql/seed/retail.sql` and `tinysql/shop.db`
-- [ ] Load `db/schema.sql` and `db/seed.sql` into a fresh
-      `db/primary.db`
-- [ ] The read replica, `db/replica.db`
-- [ ] A script in `db/` that starts the primary and the replica
-- [ ] tinyhttp's step 4, in `tinyhttp/TODO.md`
-- [ ] tinyweb's step 4, in `tinyweb/TODO.md`
-- [ ] The auth service
-- [ ] The item CRUD service
-- [ ] The search service
-- [ ] The fake payment provider, `tinypay/`
-- [ ] An HTTP client of our own in `shop/`, on `socket`, for the order
-      service to call `tinypay/`; the `http` package is banned, as in
-      `tinyweb/TODO.md`
-- [ ] The order service
-- [ ] The reverse proxy, `tinyproxy/`
-- [ ] The API gateway, `tinygateway/`, on `tinyproxy/`
+1. The database server:
+   - [ ] In `tinysql/`: everything under "Next" in `tinysql/TODO.md`
+2. Its client:
+   - [ ] A TinySQL client in Python, so the services can send queries
+3. Our database, in `db/`:
+   - [ ] `db/schema.sql`, from the schema in `DESIGN.md`, and
+         `db/seed.sql`, the sample rows for it; delete
+         `tinysql/seed/retail.sql` and `tinysql/shop.db`
+   - [ ] Load `db/schema.sql` and `db/seed.sql` into a fresh
+         `db/primary.db`
+   - [ ] The read replica, `db/replica.db`
+   - [ ] A script in `db/` that starts the primary and the replica
+4. The web server and the framework:
+   - [ ] tinyhttp's step 4, in `tinyhttp/TODO.md`
+   - [ ] tinyweb's step 4, in `tinyweb/TODO.md`
+5. The services that need no other service:
+   - [ ] The auth service
+   - [ ] The item CRUD service
+   - [ ] The search service
+6. Paying:
+   - [ ] An HTTP client of our own in `shop/`, on `socket`, for the
+         order service to call `tinypay/`; the `http` package is
+         banned, as in `tinyweb/TODO.md`
+   - [ ] The fake payment provider, `tinypay/`
+7. The order service:
+   - [ ] The order service
+8. The reverse proxy:
+   - [ ] `tinyproxy/`
+9. The API gateway:
+   - [ ] `tinygateway/`, on `tinyproxy/`
 
 ### 5. Follow-ups
 
