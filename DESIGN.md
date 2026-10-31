@@ -25,7 +25,9 @@ Step 3 of `TODO.md`.
 - **User**: one entity for both buyers and sellers.
   - `id, email, password_hash`
   - `email` is unique; `password_hash` is an `hashlib.scrypt` hash,
-    never the password itself
+    never the password itself. scrypt is slow on purpose, as hashes
+    for passwords should be; a fast one such as SHA-256 is easy to
+    guess against
 - **Item** (listing): one seller's offer. The same product sold by two
   sellers is two Items.
   - `id, seller_id, title, description, price, stock`
@@ -80,6 +82,22 @@ signed with HMAC-SHA256, and the gateway checks it.
 | | `422` | The same key with a different body |
 | | `402` | The card was declined |
 | | `502` | The payment provider failed |
+
+### Errors
+
+Every error, from every service, is a Problem Details body (RFC 9457),
+with `Content-Type: application/problem+json`:
+
+```json
+{"title": "Not enough stock", "status": 409,
+ "detail": "Item 5 has 1 left; you asked for 2."}
+```
+
+`title` is the same for every error of its kind, `status` repeats the
+HTTP status, and `detail` says what went wrong this time. `type` is
+left out, which means `about:blank`. tinyweb's own `404`, `405` and
+`500` take the same shape, and so do the gateway's `401`, `502` and
+`504`.
 
 ## Schema
 
@@ -156,8 +174,8 @@ ORDER BY id LIMIT ?;
 ```
 
 Each result is an item's `id`, `title` and `price`. `limit` is 20 when
-it's left out, and at most 100. The term is passed as `'%term%'`. The first page passes `0` as the
-cursor. If a page is full, the next cursor is its last `id`; otherwise
+it's left out, and at most 100. The term is passed as `'%term%'`. The
+first page passes `0` as the cursor. If a page is full, the next cursor is its last `id`; otherwise
 there's no next page.
 
 **`POST /orders`**
@@ -231,10 +249,25 @@ Client → API Gateway (auth, routing)
 - The payment provider is a fake one for now, `tinypay/`, its own
   process with `POST /charges`, which takes an idempotency key so a
   retry never charges twice, and `POST /refunds`.
-
+- The gateway is our own reverse proxy, `tinyproxy/`, with routing and
+  auth on top (`tinygateway/`), as Kong is nginx with plugins. The
+  proxy accepts a request, sends it on to the server behind it and
+  passes the reply back, with `502` when that server is down and `504`
+  when it's too slow. The load balancer and the CDN are built on the
+  same proxy later, one picking a server and the other adding a cache.
+- The proxy handles many connections at once, so a slow order never
+  holds up a search. It's one process with an event loop, as nginx,
+  HAProxy and Envoy are: non-blocking sockets, and `select()` to find
+  whichever is ready, with each connection a small state machine
+  (reading the request, sending it on, waiting, sending the reply
+  back). It's written on `select()` itself, not `asyncio`.
 - The auth service owns users: sign-up, and log-in, which returns a
-  JWT. The gateway checks the token on every write and passes the user
-  on to the service.
+  JWT. The gateway routes each path to its service, checks the token on
+  every write, answering `401` before the service sees it, and passes
+  the user on to the service in a header. It removes any such header
+  the client sent, so a client can't name a user itself.
+- The services listen on `127.0.0.1` only, so nothing outside the
+  machine can reach them except through the gateway.
 - Search reads from a replica, so search load never slows checkout.
   Replication lag fits the "seconds stale" requirement.
 - The Order service owns stock and orders, and is the only place
@@ -267,7 +300,11 @@ All of this is one `POST /orders` request, which answers `201` with the
 
 - **TinySQL is one server process with an event loop.** `select()`
   waits on every connection at once, and the server runs one statement
-  at a time, from whichever is ready, as Redis does.
+  at a time, from whichever is ready, as Redis does. Services talk to
+  it over a socket rather than linking TinySQL themselves: TinySQL
+  loads the whole database into memory and saves it back, so several
+  processes each holding a copy would overwrite each other's saves. One
+  server that owns the data is how Postgres and MySQL work.
 - **TinySQL runs one transaction at a time**, as SQLite and VoltDB do,
   holding the others until `COMMIT` or `ROLLBACK`. So `FOR UPDATE`
   holds without row locks: a second order for the item waits, then
