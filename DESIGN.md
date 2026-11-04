@@ -304,7 +304,10 @@ All of this is one `POST /orders` request, which answers `201` with the
   it over a socket rather than linking TinySQL themselves: TinySQL
   loads the whole database into memory and saves it back, so several
   processes each holding a copy would overwrite each other's saves. One
-  server that owns the data is how Postgres and MySQL work.
+  server that owns the data is how Postgres and MySQL work. TinySQL
+  locks a database file while it has it open, so a second process,
+  such as a REPL, fails with "database is in use" rather than
+  overwriting it, as Postgres's `postmaster.pid` stops a second server.
 - **TinySQL runs one transaction at a time**, as SQLite and VoltDB do,
   holding the others until `COMMIT` or `ROLLBACK`. So `FOR UPDATE`
   holds without row locks: a second order for the item waits, then
