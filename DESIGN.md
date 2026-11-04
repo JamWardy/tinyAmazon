@@ -145,8 +145,12 @@ current time in Unix seconds, from the service.
 **`POST /users`**
 
 ```sql
-INSERT INTO users (email, password_hash) VALUES (?, ?);
+INSERT INTO users (email, password_hash) VALUES (?, ?)
+RETURNING id, email;
 ```
+
+`RETURNING` gives back the new row, with the `id` TinySQL chose, for
+the `201`'s body; the hash stays out of it.
 
 A duplicate email breaks the `UNIQUE` constraint: `409`.
 
@@ -162,7 +166,7 @@ No row, or a hash that doesn't match: `401`.
 
 ```sql
 INSERT INTO items (seller_id, title, description, price, stock)
-VALUES (?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?) RETURNING *;
 ```
 
 **`GET /search`**
@@ -201,7 +205,8 @@ there's no next page.
    -- stock minus that sum is less than quantity: ROLLBACK, 409
    INSERT INTO orders (user_id, item_id, quantity, unit_price, status,
                        expires_at, idempotency_key, created_at)
-   VALUES (?, ?, ?, ?, 'PENDING', ?, ?, ?);  -- expires_at is now + 600
+   VALUES (?, ?, ?, ?, 'PENDING', ?, ?, ?)  -- expires_at is now + 600
+   RETURNING *;  -- its id is the payment's idempotency key
    COMMIT;
    ```
 
