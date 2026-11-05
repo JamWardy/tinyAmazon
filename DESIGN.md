@@ -173,13 +173,15 @@ VALUES (?, ?, ?, ?, ?) RETURNING *;
 
 ```sql
 SELECT id, title, price FROM items
-WHERE title LIKE ? AND stock > 0 AND id > ?
+WHERE title ILIKE ? AND stock > 0 AND id > ?
 ORDER BY id LIMIT ?;
 ```
 
 Each result is an item's `id`, `title` and `price`. `limit` is 20 when
-it's left out, and at most 100. The term is passed as `'%term%'`. The
-first page passes `0` as the cursor. If a page is full, the next cursor is its last `id`; otherwise
+it's left out, and at most 100. The term is passed as `'%term%'`, with
+a `\` put before each `%`, `_` and `\` in it, so they match only
+themselves: `50%` is passed as `'%50\%%'`. The first page passes `0` as
+the cursor. If a page is full, the next cursor is its last `id`; otherwise
 there's no next page.
 
 **`POST /orders`**
@@ -321,8 +323,9 @@ All of this is one `POST /orders` request, which answers `201` with the
   client can't block everyone.
 - **Search ignores reservations.** It shows anything with `stock > 0`.
   Reserved items still appear, and checkout handles the rest.
-- **Search matches titles containing the term**, `title LIKE
-  '%term%'`, ordered by `id`. The cursor is the last `id` seen, so the
+- **Search matches titles containing the term, ignoring case**, `title
+  ILIKE '%term%'`, ordered by `id`. It reads every item, as no index
+  finds text in the middle of a title. The cursor is the last `id` seen, so the
   next page is `WHERE id > ?`, with no `OFFSET`.
 - **The replica copies the primary by a log of statements**, as MySQL's
   statement-based replication does: the primary sends each change to
