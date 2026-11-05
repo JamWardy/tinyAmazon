@@ -1,1 +1,4 @@
 .venv/
+shop/db/*.db
+shop/db/*.db.tmp
+shop/db/*.db.lock

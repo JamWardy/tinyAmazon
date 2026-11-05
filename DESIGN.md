@@ -28,6 +28,9 @@ Step 3 of `TODO.md`.
     never the password itself. scrypt is slow on purpose, as hashes
     for passwords should be; a fast one such as SHA-256 is easy to
     guess against
+  - `password_hash` is `<salt>:<hash>`, both hex: a random 16-byte
+    salt, and the 32-byte `hashlib.scrypt` of the password with it, at
+    `n=2**14, r=8, p=1, dklen=32`
 - **Item** (listing): one seller's offer. The same product sold by two
   sellers is two Items.
   - `id, seller_id, title, description, price, stock`
@@ -277,6 +280,7 @@ Client → API Gateway (auth, routing)
   machine can reach them except through the gateway.
 - Search reads from a replica, so search load never slows checkout.
   Replication lag fits the "seconds stale" requirement.
+- The TinySQL primary listens on port 5480, and the replica on 5481.
 - The Order service owns stock and orders, and is the only place
   correctness is enforced.
 

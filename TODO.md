@@ -21,8 +21,7 @@ tinyAmazon/
   tinysql/     the database        (Postgres's job)
   tinyhttp/    the HTTP server     (gunicorn's job)   ← step 1
   tinyweb/     the framework       (Flask's job)      ← step 2, once WSGI goes in
-  shop/        the services: auth, search, items and orders  ← step 4
-  db/          our database: schema, seed data and data files
+  shop/        the shop itself: its services and its database  ← step 4
   tinypay/     the fake payment provider                    ← step 4
   tinyproxy/   the reverse proxy   (nginx's job)      ← step 4
   tinygateway/ the API gateway, on tinyproxy (Kong's job)   ← step 4
@@ -30,11 +29,13 @@ tinyAmazon/
 
 - `tinysql/` is in C, with its own `TODO.md` for what the database
   needs for the shop. It gets a server in step 4.
-- `db/` is the shop's own database, run on TinySQL's server, as an app
-  keeps its schema in its own repo, never in Postgres's:
+- `shop/` is our app: the auth, search, items and orders services, and
+  `shop/db/`, the shop's own database, run on TinySQL's server, as an
+  app keeps its schema in its own repo, never in Postgres's. Everything
+  outside `shop/` is the technology it runs on:
 
   ```
-  db/
+  shop/db/
     schema.sql    the CREATE TABLEs and the index, from DESIGN.md
     seed.sql      sample rows
     primary.db    the data files, git-ignored
@@ -110,14 +111,19 @@ Each part is built as `DESIGN.md` describes it, in this order.
    - [ ] In `tinysql/`: everything under "Next" in `tinysql/TODO.md`
 2. Its client:
    - [ ] A TinySQL client in Python, so the services can send queries
-3. Our database, in `db/`:
-   - [ ] `db/schema.sql`, from the schema in `DESIGN.md`, and
-         `db/seed.sql`, the sample rows for it; delete
-         `tinysql/seed/retail.sql` and `tinysql/shop.db`
-   - [ ] Load `db/schema.sql` and `db/seed.sql` into a fresh
-         `db/primary.db`
-   - [ ] The read replica, `db/replica.db`
-   - [ ] A script in `db/` that starts the primary and the replica
+3. Our database, in `shop/db/`:
+   - [x] `shop/db/schema.sql`, from the schema in `DESIGN.md`, and
+         `shop/db/seed.sql`, the sample rows for it, by hand: three
+         users (two sellers and a buyer, each with the password
+         `password`), about 30 items, some sold out and some with `%`
+         or `_` in the title for search's escaping, and no orders;
+         delete `tinysql/seed/retail.sql` and `tinysql/shop.db`
+   - [x] `shop/db/reset.sh`: deletes both data files and loads
+         `schema.sql` and `seed.sql` into a fresh `primary.db` through
+         the REPL
+   - [x] `shop/db/run.sh`: starts the primary and the read replica, on
+         the ports in `DESIGN.md`; the replica fills `replica.db` from
+         the primary's snapshot, and Ctrl-C stops both
 4. The web server and the framework:
    - [ ] tinyhttp's step 4, in `tinyhttp/TODO.md`
    - [ ] tinyweb's step 4, in `tinyweb/TODO.md`
