@@ -86,6 +86,9 @@ signed with HMAC-SHA256, and the gateway checks it.
 | | `402` | The card was declined |
 | | `502` | The payment provider failed |
 
+Every `POST` also answers `415` when its `Content-Type` isn't
+`application/json`.
+
 ### Errors
 
 Every error, from every service, is a Problem Details body (RFC 9457),

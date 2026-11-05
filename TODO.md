@@ -125,8 +125,8 @@ Each part is built as `DESIGN.md` describes it, in this order.
          the ports in `DESIGN.md`; the replica fills `replica.db` from
          the primary's snapshot, and Ctrl-C stops both
 4. The web server and the framework:
-   - [ ] tinyhttp's step 4, in `tinyhttp/TODO.md`
-   - [ ] tinyweb's step 4, in `tinyweb/TODO.md`
+   - [x] tinyhttp's step 4, in `tinyhttp/TODO.md`
+   - [x] tinyweb's step 4, in `tinyweb/TODO.md`
 5. The services that need no other service:
    - [ ] The auth service
    - [ ] The item CRUD service
