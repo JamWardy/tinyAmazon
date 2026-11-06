@@ -1,6 +1,6 @@
 #!/bin/sh
 # Starts the shop's database again from schema.sql and seed.sql. The REPL
-# can't open primary.db while run.sh has it, so stop that first.
+# can't open primary.db while `just run` has it, so stop that first.
 set -e
 cd "$(dirname "$0")"
 

@@ -121,9 +121,10 @@ Each part is built as `DESIGN.md` describes it, in this order.
    - [x] `shop/db/reset.sh`: deletes both data files and loads
          `schema.sql` and `seed.sql` into a fresh `primary.db` through
          the REPL
-   - [x] `shop/db/run.sh`: starts the primary and the read replica, on
-         the ports in `DESIGN.md`; the replica fills `replica.db` from
-         the primary's snapshot, and Ctrl-C stops both
+   - [x] `just run`, in `justfile`: starts the primary and the read
+         replica, on the ports in `DESIGN.md`, then every service; the
+         replica fills `replica.db` from the primary's snapshot, and
+         Ctrl-C stops them all
 4. The web server and the framework:
    - [x] tinyhttp's step 4, in `tinyhttp/TODO.md`
    - [x] tinyweb's step 4, in `tinyweb/TODO.md`
