@@ -27,9 +27,11 @@ run:
     pids="$pids $!"
     wait_for 5481 $!
 
-    # python -m tinyhttp finds shop/ and tinyhttp/ from here.
+    # python -m tinyhttp finds shop/ and tinyhttp/ from here. Idle
+    # connections are kept longer than tinyproxy keeps them, so it's always
+    # tinyproxy that closes one, never a request racing tinyhttp's close.
     start() {
-        python3 -m tinyhttp --host 127.0.0.1 --port "$1" "shop.$2:app" &
+        python3 -m tinyhttp --host 127.0.0.1 --port "$1" --keep-alive 75 "shop.$2:app" &
         pids="$pids $!"
     }
     start 8001 auth
