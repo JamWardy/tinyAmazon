@@ -25,12 +25,15 @@ tinyAmazon/
   tinyweb/     the framework       (Flask's job)      ← step 2, once WSGI goes in
   shop/        the shop itself: its services, its database, and
                tinypay, the fake payment provider        ← step 4
-  tinyproxy/   the reverse proxy   (nginx's job)      ← step 4
-  tinygateway/ the API gateway, on tinyproxy (Kong's job)   ← step 4
+  tinyproxy/   the reverse proxy, in C (nginx's job)  ← step 4
+  tinygateway/ the API gateway, in Python, run by tinyproxy
+               (Kong's job)                        ← step 4
 ```
 
 - `tinysql/` is in C, with its own `TODO.md` for what the database
   needs for the shop. It gets a server in step 4.
+- `tinyproxy/` is in C too, as nginx is, with its own `DESIGN.md` and
+  `TODO.md`, and so has `tinygateway/`.
 - `shop/` is our app: the auth, search, items and orders services, and
   `shop/db/`, the shop's own database, run on TinySQL's server, as an
   app keeps its schema in its own repo, never in Postgres's. Everything
@@ -147,10 +150,35 @@ Each part is built as `DESIGN.md` describes it, in this order.
          on `tinyrequests/`, as `DESIGN.md` describes under
          "`POST /orders`" and "The payment provider"
    - [x] The order service, `shop/orders.py`
-8. The reverse proxy:
-   - [ ] `tinyproxy/`
-9. The API gateway:
-   - [ ] `tinygateway/`, on `tinyproxy/`
+8. The reverse proxy and the API gateway, in stages, as
+   `tinyproxy/DESIGN.md` and "High-level architecture" in `DESIGN.md`
+   describe. tinyproxy's stages are in `tinyproxy/TODO.md`:
+   - [x] 1. HTTP forwarding (tinyproxy)
+   - [x] 2. Path-based routing (tinyproxy)
+   - [x] 3. Host-based routing (tinyproxy)
+   - [x] 4. Upstream pools (tinyproxy)
+   - [x] 5. Keep-alive, with clients and to the services (tinyproxy)
+   - [x] 6. Load balancing: round robin, least connections, hashing
+         (tinyproxy)
+   - [ ] 7. Health checks:
+     - [x] Passive (tinyproxy)
+     - [ ] Active (tinygateway), after stage 8, as it runs in the
+           gateway's Python, with timers and non-blocking sockets for it
+   - [x] 8. Middleware: phases with Python embedded, in
+         `tinyproxy/TODO.md`, and the plugins run at them, in
+         `tinygateway/TODO.md`
+   - [x] 9. Authentication: the JWT check and `X-User-Id`
+         (tinygateway)
+   - [ ] 10. Rate limiting (tinygateway)
+   - [ ] 11. Caching (tinyproxy)
+   - [ ] 12. Retries (tinyproxy)
+   - [ ] 13. Observability: logs and `stub_status` (tinyproxy),
+         metrics and tracing (tinygateway)
+   - [x] `shop/gateway.conf`, started by `just run` on port 8000,
+         once stage 9 is done, as "High-level architecture" in
+         `DESIGN.md` describes
+   - [ ] Two search services behind one pool in `shop/gateway.conf`,
+         so stage 7's passive health checks have something to do
 
 ### 5. Follow-ups
 
@@ -166,6 +194,9 @@ The shop and the database:
 - [ ] The cleanup job (optional; see `DESIGN.md`)
 - [ ] Token expiry and refresh
 - [ ] Pages that call the API
+- [ ] A health endpoint on each service, for stage 7's active health
+      checks to probe, and for `just run` to wait on, in place of
+      `nc -z`'s empty connections
 
 Performance:
 
@@ -173,22 +204,14 @@ Performance:
 - [ ] Pre-fork workers, as gunicorn does: a master binds the socket,
       forks several workers that each `accept()`, and restarts any that
       die (see `tinyhttp/PRE_FORK.md`)
-- [ ] Keep-alive: several requests on one connection
 - [ ] An event loop (`select` or `kqueue`), as nginx does: many
       connections in one process
 
 In front of the shop:
 
-- [ ] Rate limiting in the API gateway
-- [ ] `tinyproxy/` serves `/static/` itself, and reads slow clients'
-      requests in full before passing them on
-- [ ] Load balancer, on `tinyproxy/`: sharing requests round-robin
-      between two copies of a service (`:8001` and `:8002`) using one
-      TinySQL server
+- [ ] `tinyproxy/` serves `/static/` itself
 - [ ] DNS: `shop.local` in `/etc/hosts` first, then a small UDP server
       that answers for it
-- [ ] CDN, on `tinyproxy/`: a cache that follows `Cache-Control` for
-      `/static/`, answering from its copy without asking the server
 
 ## Decisions
 
@@ -199,6 +222,10 @@ How we build it. Decisions about the system itself are in `DESIGN.md`.
   Flask and gunicorn are Python, so we can swap ours for theirs through
   WSGI to check our work. In C, most of the time would go on strings
   and buffers, which `tinysql/` already teaches.
+- **Except the proxy, which is in C, as nginx is.** Each part is
+  written in its original's language, so tinyproxy's loop, buffers and
+  phases are built as nginx's are. tinygateway is Python embedded in
+  it, as Kong is Lua embedded in nginx.
 - **Requests at once, in stages,** as real servers did:
   1. One at a time. A client that connects and sends nothing blocks
      everyone (the Slowloris attack). That's why gunicorn's docs say to

@@ -22,3 +22,11 @@
 	path = tinyrequests
 	url = https://github.com/JamWardy/tinyrequests.git
 	branch = main
+[submodule "tinyproxy"]
+	path = tinyproxy
+	url = https://github.com/JamWardy/tinyproxy.git
+	branch = main
+[submodule "tinygateway"]
+	path = tinygateway
+	url = https://github.com/JamWardy/tinygateway.git
+	branch = main

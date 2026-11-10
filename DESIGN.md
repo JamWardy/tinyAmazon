@@ -315,18 +315,50 @@ Client → API Gateway (auth, routing)
   proxy accepts a request, sends it on to the server behind it and
   passes the reply back, with `502` when that server is down and `504`
   when it's too slow. The load balancer and the CDN are built on the
-  same proxy later, one picking a server and the other adding a cache.
+  same proxy, one picking a server and the other adding a cache.
+- tinyproxy is a simple nginx, in C, and tinygateway a simple Kong, in
+  Python, for learning how they work. Each follows its original's
+  behaviour, so what it teaches holds for the real one, but
+  understanding comes before copying: where a name or a quirk of the
+  original would get in the way, it uses a clearer one. Neither uses
+  any of its original's code. As Kong's Lua runs inside nginx
+  through OpenResty, tinyproxy embeds Python and calls the gateway's
+  code at nginx's phases. How tinyproxy works is in
+  `tinyproxy/DESIGN.md`.
 - The proxy handles many connections at once, so a slow order never
   holds up a search. It's one process with an event loop, as nginx,
   HAProxy and Envoy are: non-blocking sockets, and `select()` to find
   whichever is ready, with each connection a small state machine
   (reading the request, sending it on, waiting, sending the reply
-  back). It's written on `select()` itself, not `asyncio`.
+  back).
+- The gateway's config is `shop/gateway.conf`, as it's the shop's
+  setup, not tinyproxy's. It listens on port 8000, on every interface,
+  as the shop's only way in. `just run` starts it last, once the
+  services are up; `make` in `tinyproxy/` builds it first, as for
+  TinySQL's server. In it:
+  - Each service is a named `upstream` (`auth`, `items`, `search`,
+    `orders`) with its one `host` and `keepalive_max_idle 16;`, the
+    number in nginx's own `keepalive` example.
+  - Each path is an exact location: `location = /users` and `= /login`
+    to auth, `= /search` to search, `= /listings` to items and `=
+    /orders` to orders, with the jwt plugin on `/listings` and
+    `/orders`. Any other path gets the gateway's `404`.
+  - The `server` block sends HTTP/1.1 with `Host $host`,
+    `X-Forwarded-For $proxy_add_x_forwarded_for`, `Connection ""` for
+    upstream keep-alive, and `X-User-Id ""`, and logs to `/dev/stdout`.
+    The timeouts and body size are tinyproxy's defaults.
+  - tinypay isn't behind it, as a third party isn't.
 - The auth service owns users: sign-up, and log-in, which returns a
   JWT. The gateway routes each path to its service, checks the token on
-  every write, answering `401` before the service sees it, and passes
-  the user on to the service in a header. It removes any such header
-  the client sent, so a client can't name a user itself.
+  every write but sign-up and log-in, answering `401` before the service sees it, and passes
+  the user's id on to the service in an `X-User-Id` header. It removes
+  any such header the client sent, so a client can't name a user
+  itself: the jwt plugin does on the routes it checks, and
+  `shop/gateway.conf`'s `server` block sets `proxy_set_header
+  X-User-Id "";` for the rest. A location that sets a
+  `proxy_set_header` of its own inherits none of the server's, so it
+  must repeat that line. A service that needs the user answers `401` itself if the
+  header is missing or isn't an id, so it never acts for no one.
 - The services listen on `127.0.0.1` only, so nothing outside the
   machine can reach them except through the gateway.
 - Search reads from a replica, so search load never slows checkout.
