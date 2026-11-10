@@ -146,6 +146,12 @@ Each part is built as `DESIGN.md` describes it, in this order.
 
 ### 5. Follow-ups
 
+The docs:
+
+- [ ] Rewrite every `DESIGN.md` (the top level, `tinyproxy/`,
+      `tinygateway/` and the rest) so a person can read it. They're
+      written for agents for now: long, dense and hard to follow.
+
 The shop and the database:
 
 - [ ] The rest of `tinysql/TODO.md`: foreign keys, `JOIN`, ...
