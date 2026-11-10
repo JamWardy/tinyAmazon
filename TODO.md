@@ -19,6 +19,7 @@ One folder per part, as each is its own project in the real world:
 ```
 tinyAmazon/
   tinysql/     the database        (Postgres's job)
+  tinysqlclient/ its Python client (psycopg's job)    ← step 4
   tinyhttp/    the HTTP server     (gunicorn's job)   ← step 1
   tinyweb/     the framework       (Flask's job)      ← step 2, once WSGI goes in
   shop/        the shop itself: its services and its database  ← step 4
@@ -108,9 +109,11 @@ All in `DESIGN.md`, except the last, which is in `tinysql/TODO.md`.
 Each part is built as `DESIGN.md` describes it, in this order.
 
 1. The database server:
-   - [ ] In `tinysql/`: everything under "Next" in `tinysql/TODO.md`
+   - [x] In `tinysql/`: the server, the file lock and replication, in
+         `tinysql/TODO.md`
 2. Its client:
-   - [ ] A TinySQL client in Python, so the services can send queries
+   - [x] `tinysqlclient/`, a TinySQL client in Python, so the services
+         can send queries, in `tinysqlclient/TODO.md`
 3. Our database, in `shop/db/`:
    - [x] `shop/db/schema.sql`, from the schema in `DESIGN.md`, and
          `shop/db/seed.sql`, the sample rows for it, by hand: three

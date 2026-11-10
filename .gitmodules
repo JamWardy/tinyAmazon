@@ -14,3 +14,7 @@
 	path = tinyAmazonTest
 	url = https://github.com/JamWardy/tinyAmazonTesting.git
 	branch = main
+[submodule "tinysqlclient"]
+	path = tinysqlclient
+	url = https://github.com/JamWardy/tinysqlclient.git
+	branch = main
