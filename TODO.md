@@ -20,10 +20,11 @@ One folder per part, as each is its own project in the real world:
 tinyAmazon/
   tinysql/     the database        (Postgres's job)
   tinysqlclient/ its Python client (psycopg's job)    ← step 4
+  tinyrequests/ an HTTP client     (requests' job)    ← step 4
   tinyhttp/    the HTTP server     (gunicorn's job)   ← step 1
   tinyweb/     the framework       (Flask's job)      ← step 2, once WSGI goes in
-  shop/        the shop itself: its services and its database  ← step 4
-  tinypay/     the fake payment provider                    ← step 4
+  shop/        the shop itself: its services, its database, and
+               tinypay, the fake payment provider        ← step 4
   tinyproxy/   the reverse proxy   (nginx's job)      ← step 4
   tinygateway/ the API gateway, on tinyproxy (Kong's job)   ← step 4
 ```
@@ -138,11 +139,13 @@ Each part is built as `DESIGN.md` describes it, in this order.
    - [x] The item CRUD service, `shop/items.py`
    - [x] The search service, `shop/search.py`
 6. Paying:
-   - [ ] An HTTP client of our own in `shop/`, on `socket`, for the
-         order service to call `tinypay/`; the `http` package is
-         banned, as in `tinyweb/TODO.md`
-   - [ ] The fake payment provider, `tinypay/`
+   - [x] `tinyrequests/`, an HTTP client in Python, so the order
+         service can call tinypay, in `tinyrequests/TODO.md`
+   - [x] tinypay, the fake payment provider, `shop/tinypay.py`
 7. The order service:
+   - [x] `shop/payments.py`: charging and refunding through tinypay,
+         on `tinyrequests/`, as `DESIGN.md` describes under
+         "`POST /orders`" and "The payment provider"
    - [ ] The order service
 8. The reverse proxy:
    - [ ] `tinyproxy/`

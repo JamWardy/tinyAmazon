@@ -18,3 +18,7 @@
 	path = tinysqlclient
 	url = https://github.com/JamWardy/tinysqlclient.git
 	branch = main
+[submodule "tinyrequests"]
+	path = tinyrequests
+	url = https://github.com/JamWardy/tinyrequests.git
+	branch = main

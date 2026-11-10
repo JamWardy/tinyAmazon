@@ -286,9 +286,9 @@ Client → API Gateway (auth, routing)
                                   → third-party payment provider
 ```
 
-- The payment provider is a fake one for now, `tinypay/`, its own
-  process with `POST /charges`, which takes an idempotency key so a
-  retry never charges twice, and `POST /refunds`.
+- The payment provider is a fake one for now, tinypay, in
+  `shop/tinypay.py`: a simple mock of a third party, as Stripe is, in
+  its own process on port 9001. See "The payment provider" below.
 - The gateway is our own reverse proxy, `tinyproxy/`, with routing and
   auth on top (`tinygateway/`), as Kong is nginx with plugins. The
   proxy accepts a request, sends it on to the server behind it and
@@ -315,6 +315,42 @@ Client → API Gateway (auth, routing)
   8004 (orders).
 - The Order service owns stock and orders, and is the only place
   correctness is enforced.
+
+## The payment provider
+
+tinypay is a mock of a third party, so it keeps to its own API, not the
+shop's: its errors aren't Problem Details. Every charge succeeds, so
+the order service's `402` is there for a real provider.
+
+| Endpoint | Request | Response |
+|---|---|---|
+| `POST /charges` | Body: `{ amount }`, in pence, from 1 up | `201 { id, amount, status }`: `id` is `ch_` and 24 random hex digits; `status` is `"succeeded"` |
+| `POST /refunds` | Body: `{ charge }`, a charge's `id` | `201 { id, charge, amount }`: `id` is `re_` and 24 random hex digits; the whole amount is refunded |
+
+- Every request sends `Authorization: Bearer <key>`, the key in the
+  `TINYPAY_SECRET` environment variable, which tinypay and the order
+  service share; tinypay won't start without it.
+- Every request sends an `Idempotency-Key` header. The first reply to a
+  key is kept and given back to every retry with it, without charging
+  or refunding again. The order service sends the order's `id` for its
+  charge, and `refund-<order id>` for its refund.
+- Charges, refunds and kept replies are held in memory, so a restart
+  forgets them.
+
+Errors are `{"error": {"code": ..., "message": ...}}`, with codes as
+Stripe's:
+
+| Status | Code | When |
+|---|---|---|
+| `400` | `invalid_request` | No `Idempotency-Key`, or a bad body, such as an `amount` of 0 |
+| `401` | `invalid_api_key` | No key, or the wrong one |
+| `404` | `resource_missing` | A refund of a charge that doesn't exist |
+| `409` | `charge_already_refunded` | A second refund of a charge, under a new key |
+| `415` | `invalid_request` | A `Content-Type` that isn't `application/json` |
+| `422` | `idempotency_key_reused` | A key sent again with a different path or body |
+
+Any other status, such as tinyweb's `405`, has the status's words in
+snake case as its code, such as `method_not_allowed`.
 
 ## Ordering flow
 
