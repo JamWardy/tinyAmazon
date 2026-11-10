@@ -146,7 +146,7 @@ Each part is built as `DESIGN.md` describes it, in this order.
    - [x] `shop/payments.py`: charging and refunding through tinypay,
          on `tinyrequests/`, as `DESIGN.md` describes under
          "`POST /orders`" and "The payment provider"
-   - [ ] The order service
+   - [x] The order service, `shop/orders.py`
 8. The reverse proxy:
    - [ ] `tinyproxy/`
 9. The API gateway:

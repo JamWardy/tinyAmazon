@@ -91,13 +91,13 @@ expiresAt, idempotencyKey, chargeId, createdAt}`.
 | | `400` | A field missing, or a bad value such as a negative price |
 | | `401` | No token, or a bad one (from the gateway) |
 | `POST /orders` | `201` | Placed and paid, or a retry of one (the same order) |
-| | `400` | No `Idempotency-Key`, or a bad body such as `quantity` 0 |
+| | `400` | No `Idempotency-Key`, or one over 255 characters, or a bad body such as `quantity` 0 |
 | | `401` | No token, or a bad one (from the gateway) |
 | | `404` | No such item |
 | | `409` | Not enough stock, or a retry of an `EXPIRED` or `CANCELLED` order |
 | | `422` | The same key with a different body |
 | | `402` | The card was declined |
-| | `502` | The payment provider failed |
+| | `502` | The payment provider failed, or a refund did |
 
 Every `POST` also answers `415` when its `Content-Type` isn't
 `application/json`.
@@ -125,6 +125,14 @@ have titles of their own:
 | `401` | Not logged in | No `X-User-Id`, or a bad one |
 | `400` | Invalid listing | `POST /listings` with a field missing or bad |
 | `400` | Invalid page | `GET /search` with a bad `limit` or `cursor` |
+| `400` | Missing Idempotency-Key | `POST /orders` without one |
+| `400` | Invalid order | `POST /orders` with a bad body, or a key over 255 characters |
+| `404` | No such item | `POST /orders` for an item that doesn't exist |
+| `409` | Not enough stock | `POST /orders` for more than is free, or the stock went while paying |
+| `409` | Order closed | A retry of an `EXPIRED` or `CANCELLED` order |
+| `422` | Idempotency-Key reused | The same key with a different item or quantity |
+| `402` | Card declined | The payment provider declined the charge |
+| `502` | Payment failed | The payment provider failed |
 
 Any other error, such as a body that isn't JSON, has the status's own
 words as its title, such as "Bad Request". tinyweb's own `404`, `405` and
@@ -228,7 +236,12 @@ isn't a whole number from 0 up, is `400`.
    If there's one with a different `item_id` or `quantity`: `422`. A
    `PAID` one: `201` with it. A `PENDING` one: carry on from step 3.
    An `EXPIRED` or `CANCELLED` one: `409`, and the client starts again
-   with a new key.
+   with a new key. A `CANCELLED` one is refunded again first, in case
+   its refund failed; the refund's key makes that a no-op if it
+   didn't.
+
+   `quantity` is a whole number from 1 up that fits `INT`, and the key
+   any string of 1 to 255 characters, as Stripe allows.
 
 2. Reserve:
 
@@ -251,7 +264,10 @@ isn't a whole number from 0 up, is `400`.
 3. Pay: `POST /charges` to the payment provider, for `quantity ×
    unit_price`, with the order's `id` as its idempotency key, so paying
    again after a crash never charges twice. Declined: set the order
-   `EXPIRED`, which frees the stock, and answer `402`. Failed: `502`.
+   `EXPIRED`, which frees the stock, and answer `402`. Failed: `502`,
+   and the order stays `PENDING`, so a retry with the same key carries
+   on from here. Failed means no answer within 2 seconds to connect or
+   10 to read, or any reply but a `201` or a `402`, such as a `5xx`.
 
 4. Confirm:
 
@@ -265,8 +281,13 @@ isn't a whole number from 0 up, is `400`.
    ```
 
    If it expired and the stock went to someone else: set the order
-   `CANCELLED` with its `charge_id`, `COMMIT`, `POST /refunds`, and
-   answer `409`.
+   `CANCELLED` with its `charge_id`, `COMMIT`, `POST /refunds` with the
+   key `refund-<order id>`, and answer `409`, or `502` if the refund
+   failed.
+
+   A retry of the same order may have confirmed it while this one was
+   paying, so the order is read again after the lock, and left as it
+   is unless it's still `PENDING`.
 
 **The cleanup job** (optional)
 
