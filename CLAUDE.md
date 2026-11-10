@@ -1,5 +1,9 @@
 # Working on tinyAmazon
 
+- **Always `main`, in every repo.** The top level and every submodule
+  work, commit and push on `main` only. Never make or switch to another
+  branch.
+
 - **Ask before deciding anything the plan doesn't specify.** The plan
   is `DESIGN.md`, `TODO.md` and each part's own `TODO.md`. If the work
   needs a design or behaviour choice they don't cover, stop and ask in
