@@ -33,6 +33,7 @@ run:
     start() {
         python3 -m tinyhttp --host 127.0.0.1 --port "$1" --keep-alive 75 "shop.$2:app" &
         pids="$pids $!"
+        wait_for "$1" $!
     }
     start 8001 auth
     start 8002 items

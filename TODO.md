@@ -131,10 +131,12 @@ Each part is built as `DESIGN.md` describes it, in this order.
 4. The web server and the framework:
    - [x] tinyhttp's step 4, in `tinyhttp/TODO.md`
    - [x] tinyweb's step 4, in `tinyweb/TODO.md`
-5. The services that need no other service:
-   - [ ] The auth service
-   - [ ] The item CRUD service
-   - [ ] The search service
+5. The services that need no other service, one module each in
+   `shop/`, with what they share in `shop/common.py`, each started
+   by `just run`:
+   - [x] The auth service, `shop/auth.py`
+   - [x] The item CRUD service, `shop/items.py`
+   - [x] The search service, `shop/search.py`
 6. Paying:
    - [ ] An HTTP client of our own in `shop/`, on `socket`, for the
          order service to call `tinypay/`; the `http` package is

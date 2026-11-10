@@ -54,11 +54,24 @@ All write endpoints require a JWT. User and seller IDs come from the
 token, never the request body. The auth service issues the token,
 signed with HMAC-SHA256, and the gateway checks it.
 
+The token is a JWT with the header `{"alg": "HS256", "typ": "JWT"}`
+and the payload `{"sub": "<user id>", "iat": <now>}`, signed with the
+secret in the `SHOP_JWT_SECRET` environment variable, which the auth
+service and the gateway share; neither starts without it. It has no
+`exp` until token expiry, a follow-up in `TODO.md`. The client sends
+it in an `Authorization: Bearer <token>` header. How the gateway
+checks it is in `tinygateway/DESIGN.md`.
+
+Bodies are JSON, with keys in camelCase: an `Item` is `{id, sellerId,
+title, description, price, stock}`, a `User` is `{id, email}`, and an
+`Order` is `{id, userId, itemId, quantity, unitPrice, status,
+expiresAt, idempotencyKey, chargeId, createdAt}`.
+
 | Endpoint | Request | Response |
 |---|---|---|
 | `POST /users` | Body: email, password | `User` |
-| `POST /login` | Body: email, password | JWT |
-| `GET /search?term=&cursor=&limit=` | Search term, pagination | `Partial<Item>[]` (summary fields) plus next cursor |
+| `POST /login` | Body: email, password | `{ token }`, the JWT |
+| `GET /search?term=&cursor=&limit=` | Search term, pagination | `{ items, nextCursor }`: `Partial<Item>[]` (summary fields), and the next cursor or `null` |
 | `POST /listings` | Body: `Partial<Item>` (title, description, price, stock) | `Item` |
 | `POST /orders` | Header: `Idempotency-Key`. Body: `{ itemId, quantity }` | `Order` |
 
@@ -69,7 +82,7 @@ signed with HMAC-SHA256, and the gateway checks it.
 | `POST /users` | `201` | Created |
 | | `400` | Email or password missing, or the body isn't JSON |
 | | `409` | The email is taken |
-| `POST /login` | `200` | The body is the JWT |
+| `POST /login` | `200` | The body has the JWT |
 | | `400` | Email or password missing |
 | | `401` | Wrong email or password, the same for both |
 | `GET /search` | `200` | Results, perhaps none |
@@ -101,7 +114,20 @@ with `Content-Type: application/problem+json`:
 
 `title` is the same for every error of its kind, `status` repeats the
 HTTP status, and `detail` says what went wrong this time. `type` is
-left out, which means `about:blank`. tinyweb's own `404`, `405` and
+left out, which means `about:blank`. Each service's own kinds of error
+have titles of their own:
+
+| Status | Title | When |
+|---|---|---|
+| `400` | Missing email or password | `POST /users` or `/login` without them |
+| `409` | Email already registered | `POST /users` with a taken email |
+| `401` | Wrong email or password | `POST /login`, either one wrong |
+| `401` | Not logged in | No `X-User-Id`, or a bad one |
+| `400` | Invalid listing | `POST /listings` with a field missing or bad |
+| `400` | Invalid page | `GET /search` with a bad `limit` or `cursor` |
+
+Any other error, such as a body that isn't JSON, has the status's own
+words as its title, such as "Bad Request". tinyweb's own `404`, `405` and
 `500` take the same shape, and so do the gateway's `401`, `502` and
 `504`.
 
@@ -188,7 +214,8 @@ it's left out, and at most 100. The term is passed as `'%term%'`, with
 a `\` put before each `%`, `_` and `\` in it, so they match only
 themselves: `50%` is passed as `'%50\%%'`. The first page passes `0` as
 the cursor. If a page is full, the next cursor is its last `id`; otherwise
-there's no next page.
+there's no next page. A `limit` outside 1 to 100, or a `cursor` that
+isn't a whole number from 0 up, is `400`.
 
 **`POST /orders`**
 
@@ -284,6 +311,8 @@ Client → API Gateway (auth, routing)
 - Search reads from a replica, so search load never slows checkout.
   Replication lag fits the "seconds stale" requirement.
 - The TinySQL primary listens on port 5480, and the replica on 5481.
+  The services listen on 8001 (auth), 8002 (items), 8003 (search) and
+  8004 (orders).
 - The Order service owns stock and orders, and is the only place
   correctness is enforced.
 
