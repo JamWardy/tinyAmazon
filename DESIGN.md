@@ -343,6 +343,11 @@ Client → API Gateway (auth, routing)
     to auth, `= /search` to search, `= /listings` to items and `=
     /orders` to orders, with the jwt plugin on `/listings` and
     `/orders`. Any other path gets the gateway's `404`.
+  - The cors plugin is on every path, set once in the `server` block,
+    and before jwt, with `plugins "cors jwt"`, on `/listings` and
+    `/orders`. It allows `GET, POST`, the headers `Authorization,
+    Content-Type, Idempotency-Key`, and a max age of 600 seconds, from
+    the frontend's origin, `http://localhost:8080`.
   - The `server` block sends HTTP/1.1 with `Host $host`,
     `X-Forwarded-For $proxy_add_x_forwarded_for`, `Connection ""` for
     upstream keep-alive, and `X-User-Id ""`, and logs to `/dev/stdout`.
@@ -368,6 +373,34 @@ Client → API Gateway (auth, routing)
   8004 (orders).
 - The Order service owns stock and orders, and is the only place
   correctness is enforced.
+
+## The frontend
+
+Pages in the browser that call the API through the gateway, as a site
+on one origin calling an API on another does, with CORS between them.
+
+- `shop/frontend.py`, a tinyweb app, serves them from `shop/web/` on
+  `http://localhost:8080`, started by `just run`. They must be opened
+  at `localhost`, not `127.0.0.1`, as the gateway allows that origin
+  exactly. They call the API at `http://localhost:8000`.
+- Plain HTML, CSS and JavaScript with `fetch`: no libraries and no
+  build step.
+- Three pages, as the API has no endpoint for one item or a user's
+  orders:
+  - `/`: search, with "More" for the next page, and a quantity and
+    Buy on each result.
+  - `/login`: log in, or sign up and then log in.
+  - `/sell`: a new listing, showing the `Item` made.
+- The JWT is kept in `localStorage`, so it survives a reload, and
+  "Log out" removes it. Any script on the page can read it, so a
+  cross-site scripting bug would leak it; an `HttpOnly` cookie would
+  not, but needs credentialed CORS and the gateway reading cookies. A
+  `401` removes it and sends the user to `/login`.
+- Buying follows "Ordering flow": each Buy makes a new
+  `Idempotency-Key` with `crypto.randomUUID()`. A network error or a
+  `502` turns the button to "Try again", which sends the same key; any
+  other reply ends that attempt, so the next Buy gets a new key.
+- An error shows its Problem Details `title` and `detail`.
 
 ## The payment provider
 

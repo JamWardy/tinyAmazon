@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tinyAmazon</title>
+  <link rel="stylesheet" href="/static/shop.css">
+</head>
+<body>
+  <header>
+    <h1><a href="/">tinyAmazon</a></h1>
+    <nav></nav>
+  </header>
+  <main>
+    <form id="search">
+      <input name="term" type="search" placeholder="Search listings" aria-label="Search term" autofocus>
+      <button>Search</button>
+    </form>
+    <p id="message"></p>
+    <ul id="results"></ul>
+    <button id="more" hidden>More</button>
+  </main>
+  <script type="module">
+    import { api, token, goToLogin, problemText, pounds, showNav, say } from "/static/shop.js";
+
+    showNav();
+    const form = document.querySelector("#search");
+    const results = document.querySelector("#results");
+    const more = document.querySelector("#more");
+    const message = document.querySelector("#message");
+    let term = "";
+    let cursor = null;
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      term = form.term.value.trim();
+      cursor = null;
+      results.replaceChildren();
+      history.replaceState(null, "", term ? "/?term=" + encodeURIComponent(term) : "/");
+      search();
+    });
+    more.addEventListener("click", search);
+
+    async function search() {
+      const query = new URLSearchParams({ term });
+      if (cursor !== null) query.set("cursor", cursor);
+      let reply;
+      try {
+        reply = await api("/search?" + query);
+      } catch {
+        say(message, "Couldn't reach the shop.", true);
+        return;
+      }
+      if (!reply.ok) {
+        say(message, problemText(reply), true);
+        return;
+      }
+      for (const item of reply.data.items) results.append(result(item));
+      cursor = reply.data.nextCursor;
+      more.hidden = cursor === null;
+      say(message, results.children.length ? "" : "Nothing found.");
+    }
+
+    function result(item) {
+      const li = document.createElement("li");
+      const title = document.createElement("span");
+      title.className = "title";
+      title.textContent = item.title;
+      const price = document.createElement("span");
+      price.className = "price";
+      price.textContent = pounds(item.price);
+      const quantity = document.createElement("input");
+      quantity.type = "number";
+      quantity.min = "1";
+      quantity.value = "1";
+      quantity.setAttribute("aria-label", "Quantity");
+      const buy = document.createElement("button");
+      buy.textContent = "Buy";
+      const status = document.createElement("p");
+      status.className = "status";
+      li.append(title, price, quantity, buy, status);
+
+      // One key per checkout attempt, kept for "Try again", as DESIGN.md's
+      // "Ordering flow" says, so a retry never orders twice.
+      let key = null;
+      buy.addEventListener("click", async () => {
+        if (!token()) {
+          goToLogin();
+          return;
+        }
+        key ??= crypto.randomUUID();
+        // The same key with another quantity would be a 422.
+        quantity.disabled = buy.disabled = true;
+        say(status, "Ordering…");
+        let reply;
+        try {
+          reply = await api("/orders", {
+            method: "POST",
+            auth: true,
+            headers: { "Idempotency-Key": key },
+            body: { itemId: item.id, quantity: Number(quantity.value) },
+          });
+        } catch {
+          reply = null;
+        }
+        buy.disabled = false;
+        if (reply === null || reply.status === 502) {
+          buy.textContent = "Try again";
+          say(status, reply ? problemText(reply) : "Couldn't reach the shop.", true);
+          return;
+        }
+        key = null;
+        quantity.disabled = false;
+        buy.textContent = "Buy";
+        if (reply.ok) {
+          const order = reply.data;
+          say(status, `Ordered: order ${order.id}, ${order.quantity} for ` +
+                      `${pounds(order.quantity * order.unitPrice)}, ${order.status}.`);
+        } else {
+          say(status, problemText(reply), true);
+        }
+      });
+      return li;
+    }
+
+    const start = new URLSearchParams(location.search).get("term");
+    if (start !== null) {
+      form.term.value = start;
+      form.requestSubmit();
+    }
+  </script>
+</body>
+</html>

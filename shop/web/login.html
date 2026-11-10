@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Log in · tinyAmazon</title>
+  <link rel="stylesheet" href="/static/shop.css">
+</head>
+<body>
+  <header>
+    <h1><a href="/">tinyAmazon</a></h1>
+    <nav></nav>
+  </header>
+  <main>
+    <h2>Log in</h2>
+    <form id="login" class="stacked">
+      <label>Email <input name="email" type="email" autocomplete="email" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <div class="buttons">
+        <button name="action" value="login">Log in</button>
+        <button name="action" value="signup" class="secondary">Sign up</button>
+      </div>
+    </form>
+    <p id="message"></p>
+  </main>
+  <script type="module">
+    import { api, logIn, problemText, showNav, say } from "/static/shop.js";
+
+    showNav();
+    const form = document.querySelector("#login");
+    const message = document.querySelector("#message");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const email = form.email.value;
+      const password = form.password.value;
+      try {
+        if (event.submitter.value === "signup") {
+          const made = await api("/users", { method: "POST", body: { email, password } });
+          if (!made.ok) {
+            say(message, problemText(made), true);
+            return;
+          }
+        }
+        const reply = await logIn(email, password);
+        if (!reply.ok) {
+          say(message, problemText(reply), true);
+          return;
+        }
+      } catch {
+        say(message, "Couldn't reach the shop.", true);
+        return;
+      }
+      // Only a path on this site, so a link can't send the user elsewhere.
+      const next = new URLSearchParams(location.search).get("next") || "/";
+      location.href = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+    });
+  </script>
+</body>
+</html>

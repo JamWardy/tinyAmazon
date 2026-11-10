@@ -1,0 +1,126 @@
+:root {
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --line: #d2d2d7;
+  --accent: #b35900;
+  --error: #c1121f;
+  --background: #fbfbfd;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--text);
+  background: var(--background);
+}
+
+body {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 0 1rem 3rem;
+}
+
+header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 1.5rem;
+}
+
+header h1 a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+nav a {
+  color: var(--text);
+}
+
+nav span {
+  color: var(--muted);
+}
+
+input, textarea, button {
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: white;
+  color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+#search {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#search input {
+  flex: 1;
+}
+
+#results {
+  list-style: none;
+  padding: 0;
+}
+
+#results li {
+  display: grid;
+  grid-template-columns: 1fr auto 4.5rem auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+#results .price {
+  color: var(--muted);
+}
+
+#results .status {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+#results .status:empty {
+  display: none;
+}
+
+.stacked {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 24rem;
+}
+
+.stacked label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.error {
+  color: var(--error);
+}

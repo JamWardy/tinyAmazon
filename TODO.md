@@ -193,7 +193,9 @@ The shop and the database:
 - [ ] The rest of `tinysql/TODO.md`: foreign keys, `JOIN`, ...
 - [ ] The cleanup job (optional; see `DESIGN.md`)
 - [ ] Token expiry and refresh
-- [ ] Pages that call the API
+- [x] Pages that call the API, as "The frontend" in `DESIGN.md`
+      describes: `shop/frontend.py` and `shop/web/`, started by `just
+      run`, with `cors_origins` in `shop/gateway.conf`
 - [ ] A health endpoint on each service, for stage 7's active health
       checks to probe, and for `just run` to wait on, in place of
       `nc -z`'s empty connections

@@ -1,7 +1,8 @@
 # The database's primary (5480) and read replica (5481), then the auth,
 # items, search and order services (8001 to 8004) and tinypay (9001), each
 # its own process, on 127.0.0.1 only; then the gateway, on port 8000, the
-# shop's only way in. Build tinysql/ and tinyproxy/ with make first.
+# shop's only way in. The pages are at http://localhost:8080. Build tinysql/
+# and tinyproxy/ with make first.
 
 # Start the whole shop; Ctrl-C stops it all
 run:
@@ -41,6 +42,8 @@ run:
     start 8003 search
     start 8004 orders
     start 9001 tinypay
+    start 8080 frontend
+
     tinyproxy/tinyproxy -c shop/gateway.conf &
     pids="$pids $!"
     wait_for 8000 $!

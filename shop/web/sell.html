@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sell · tinyAmazon</title>
+  <link rel="stylesheet" href="/static/shop.css">
+</head>
+<body>
+  <header>
+    <h1><a href="/">tinyAmazon</a></h1>
+    <nav></nav>
+  </header>
+  <main>
+    <h2>Sell something</h2>
+    <form id="sell" class="stacked">
+      <label>Title <input name="title" required></label>
+      <label>Description <textarea name="description" rows="3"></textarea></label>
+      <label>Price (£) <input name="price" type="number" min="0" step="0.01" required></label>
+      <label>Stock <input name="stock" type="number" min="0" step="1" value="1" required></label>
+      <div class="buttons"><button>List it</button></div>
+    </form>
+    <p id="message"></p>
+  </main>
+  <script type="module">
+    import { api, token, goToLogin, problemText, pounds, showNav, say } from "/static/shop.js";
+
+    showNav();
+    if (!token()) goToLogin();
+    const form = document.querySelector("#sell");
+    const message = document.querySelector("#message");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const listing = {
+        title: form.title.value,
+        // The API takes pence; rounding stops 0.1 + 0.2 sending 30.000000000000004.
+        price: Math.round(Number(form.price.value) * 100),
+        stock: Number(form.stock.value),
+      };
+      if (form.description.value) listing.description = form.description.value;
+      let reply;
+      try {
+        reply = await api("/listings", { method: "POST", auth: true, body: listing });
+      } catch {
+        say(message, "Couldn't reach the shop.", true);
+        return;
+      }
+      if (!reply.ok) {
+        say(message, problemText(reply), true);
+        return;
+      }
+      const item = reply.data;
+      say(message, `Listed: item ${item.id}, “${item.title}”, ${pounds(item.price)}, ` +
+                   `${item.stock} in stock.`);
+      form.reset();
+    });
+  </script>
+</body>
+</html>
