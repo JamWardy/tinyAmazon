@@ -100,7 +100,9 @@ expiresAt, idempotencyKey, chargeId, createdAt}`.
 | | `502` | The payment provider failed, or a refund did |
 
 Every `POST` also answers `415` when its `Content-Type` isn't
-`application/json`.
+`application/json`, and every endpoint answers `429` from the gateway
+when a client sends too many (see `shop/gateway.conf` under
+"High-level architecture").
 
 ### Errors
 
@@ -136,8 +138,8 @@ have titles of their own:
 
 Any other error, such as a body that isn't JSON, has the status's own
 words as its title, such as "Bad Request". tinyweb's own `404`, `405` and
-`500` take the same shape, and so do the gateway's `401`, `502` and
-`504`.
+`500` take the same shape, and so do the gateway's `401`, `429`, `502`
+and `504`.
 
 ## Schema
 
@@ -348,6 +350,14 @@ Client → API Gateway (auth, routing)
     `/orders`. It allows `GET, POST`, the headers `Authorization,
     Content-Type, Idempotency-Key`, and a max age of 600 seconds, from
     the frontend's origin, `http://localhost:8080`.
+  - The rate_limit plugin is on every path, after cors and jwt, with
+    `plugins "cors rate_limit"` in the `server` block and `"cors jwt
+    rate_limit"` on `/listings` and `/orders`. Each location sets its
+    own limits, tightest where a flood does harm: `/login` 10 a minute
+    and 50 an hour, against password guessing; `/users` 5 a minute and
+    20 an hour, against made-up accounts; `/orders` 10 a minute;
+    `/listings` 20 a minute; and `/search` 10 a second and 300 a
+    minute.
   - The `server` block sends HTTP/1.1 with `Host $host`,
     `X-Forwarded-For $proxy_add_x_forwarded_for`, `Connection ""` for
     upstream keep-alive, and `X-User-Id ""`, and logs to `/dev/stdout`.

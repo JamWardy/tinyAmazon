@@ -169,7 +169,7 @@ Each part is built as `DESIGN.md` describes it, in this order.
          `tinygateway/TODO.md`
    - [x] 9. Authentication: the JWT check and `X-User-Id`
          (tinygateway)
-   - [ ] 10. Rate limiting (tinygateway)
+   - [x] 10. Rate limiting (tinygateway)
    - [ ] 11. Caching (tinyproxy)
    - [ ] 12. Retries (tinyproxy)
    - [ ] 13. Observability: logs and `stub_status` (tinyproxy),
